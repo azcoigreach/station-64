@@ -1,0 +1,176 @@
+# Station-64 BBS - Cursor/Copilot Instructions
+
+## Project Overview
+Station-64 is a modern BBS (Bulletin Board System) built in Python for the Commodore 64 and retro computing community. It provides both telnet access for authentic C64 hardware and a web-based terminal emulator for modern browsers.
+
+## Architecture
+
+### Core Components
+1. **Async Telnet Server** (`bbs/server.py`) - Handles C64 hardware connections via telnet
+2. **FastAPI Web Server** (`bbs/web.py`) - Provides web UI with WebSocket terminal
+3. **Shared BBS Core** (`bbs/core.py`) - Common session and menu logic used by both connection types
+
+### Key Design Principles
+- **Dual Connection Support**: Both telnet and web connections use the same `BBSCore` session logic
+- **PETSCII Encoding**: All text must be properly encoded/decoded for C64 compatibility
+- **Async/Await**: Use async patterns throughout (asyncio, asyncpg, FastAPI)
+- **Extensible Menus**: New features should be added via the `BBSMenu` base class pattern
+- **Session Management**: All connections create a `BBSSession` that tracks state
+
+## Coding Conventions
+
+### Python Style
+- Use Python 3.11+ features
+- Follow PEP 8 style guidelines
+- Use type hints where appropriate
+- Async functions should use `async def` and `await`
+- Use f-strings for string formatting
+
+### File Structure
+```
+bbs/
+  ├── __init__.py       # Package initialization
+  ├── main.py          # Entry point (runs both servers)
+  ├── server.py        # Telnet server
+  ├── web.py           # FastAPI web server
+  ├── core.py          # Core BBS logic (sessions, menus)
+  ├── petscii.py       # PETSCII encoding/decoding
+  ├── database.py      # Database models (SQLAlchemy async)
+  └── config.py        # Configuration management
+```
+
+### Important Patterns
+
+#### Adding New Commands
+1. Create a menu class inheriting from `BBSMenu`
+2. Register commands in the `commands` dictionary
+3. Commands should be async and return strings
+4. Use `session.waiting_for_continue = True` for commands that need user confirmation
+
+Example:
+```python
+class MyMenu(BBSMenu):
+    def __init__(self):
+        super().__init__("mymenu", "My Menu Title")
+        self.commands = {
+            "X": self.my_command,
+        }
+    
+    async def my_command(self, session: BBSSession, cmd: str) -> str:
+        return "Command output\n"
+```
+
+#### PETSCII Handling
+- Always use `encode_petscii()` when sending data to telnet clients
+- Use `decode_petscii()` when receiving data from telnet clients
+- Web connections use plain text (no PETSCII encoding needed)
+- Check `session.connection_type` to determine if encoding is needed
+
+#### Session Management
+- Sessions are created via `bbs_core.create_session(ConnectionType, remote_addr)`
+- Always call `session.update_activity()` when processing input
+- Set `session.is_active = False` when user quits
+- Remove sessions with `bbs_core.remove_session(session_id)` on disconnect
+
+## Database
+
+### Models
+- `User` - User accounts (not yet fully integrated)
+- `Session` - Session tracking (not yet fully integrated)
+- Currently using in-memory session storage
+
+### Database Access
+- Use async SQLAlchemy with asyncpg
+- Always use `async with AsyncSessionLocal() as session:` pattern
+- Database URL: `postgresql+asyncpg://...`
+
+## Configuration
+
+### Environment Variables
+- `DATABASE_URL` - PostgreSQL connection string
+- `TELNET_HOST` - Telnet server bind address (default: 0.0.0.0)
+- `TELNET_PORT` - Telnet server port (default: 2323, or 6400 in docker-compose)
+- `WEB_HOST` - Web server bind address (default: 0.0.0.0)
+- `WEB_PORT` - Web server port (default: 8000)
+- `DEBUG` - Enable debug mode (default: false)
+- `LOG_LEVEL` - Logging level (default: INFO)
+
+### Path Resolution
+- Use `Path(__file__).parent.parent` to get BASE_DIR
+- Static files are at `BASE_DIR / "web" / "static"`
+- Always use absolute paths, not relative paths
+
+## Testing
+
+### Telnet Testing
+- Use `test_telnet.py` script for manual telnet testing
+- Test with: `python test_telnet.py <command>`
+
+### Web Testing
+- Access web UI at `http://<LAN_IP>:8000` (WSL2 networking quirk - localhost may not work)
+- WebSocket connects automatically on page load
+
+## Docker Deployment
+
+### Setup
+- Use `docker-compose up -d` to start services
+- PostgreSQL runs in separate container
+- BBS container mounts `./bbs` and `./web/static` as volumes for development
+- Ports: 8000 (web), 2323/6400 (telnet), 5432 (postgres)
+
+### Development
+- Code changes in `bbs/` and `web/static/` are reflected immediately (volume mounts)
+- Restart container: `docker-compose restart bbs`
+- View logs: `docker logs station64-bbs`
+
+## Future Features (Planned)
+- User authentication and registration
+- Message boards
+- File downloads/uploads
+- Door games
+- Multi-node support
+- ANSI/PETSCII art support
+
+## Common Issues & Solutions
+
+### WSL2 Networking
+- `localhost` may not work for web UI access
+- Use LAN IP address instead (e.g., `10.45.42.20:8000`)
+- Port forwarding is configured in docker-compose.yml
+
+### PETSCII Encoding
+- Telnet clients send/receive PETSCII bytes
+- Web clients send/receive plain Unicode text
+- Always check `session.connection_type` before encoding
+
+### Session State
+- Sessions are in-memory (not persisted to database yet)
+- Session state includes: current_menu, waiting_for_continue, is_active
+- Always initialize `is_active = True` in `BBSSession.__init__`
+
+## Code Quality Guidelines
+
+1. **Error Handling**: Always wrap file I/O and database operations in try/except
+2. **Logging**: Use the logger for important events (connection, errors, etc.)
+3. **Async Safety**: Don't block the event loop - use async I/O everywhere
+4. **Type Safety**: Use type hints for function parameters and returns
+5. **Documentation**: Add docstrings to classes and public methods
+6. **Extensibility**: Design new features to be easily extensible via the menu system
+
+## Retro Computing Considerations
+
+- **Character Set**: C64 uses PETSCII, not ASCII
+- **Screen Width**: Traditional BBS screens are 40 or 80 columns
+- **Line Endings**: C64 uses CR (0x0D), modern systems use CRLF
+- **Terminal Emulation**: Web UI should feel authentic to C64 experience
+- **Color**: Classic BBS aesthetic (green on black, amber on black, etc.)
+
+## When Adding Features
+
+1. Consider both telnet and web connection types
+2. Ensure PETSCII compatibility for telnet
+3. Test with actual C64 hardware when possible
+4. Maintain retro computing authenticity
+5. Follow the menu system pattern for consistency
+6. Update README.md with new commands/features
+

@@ -86,8 +86,16 @@ async def websocket_endpoint(websocket: WebSocket):
     
     try:
         # Send initial screen
-        initial_screen = await bbs.get_screen(session)
-        await websocket.send_text(initial_screen)
+        try:
+            initial_screen = await bbs.get_screen(session)
+            if initial_screen:
+                await websocket.send_text(initial_screen)
+            else:
+                logger.warning("Initial screen was empty")
+                await websocket.send_text("STATION-64 BBS\nConnecting...\n")
+        except Exception as e:
+            logger.error(f"Error generating initial screen: {e}", exc_info=True)
+            await websocket.send_text("STATION-64 BBS\nError loading screen. Please refresh.\n")
         
         while True:
             try:
@@ -148,6 +156,55 @@ async def health():
     except Exception as e:
         logger.error(f"Health check error: {e}", exc_info=True)
         return {"status": "error", "error": str(e)}
+
+
+@app.get("/ws-test")
+async def ws_test():
+    """Test endpoint to verify WebSocket route is accessible."""
+    return {"message": "WebSocket endpoint available at /ws", "status": "ok"}
+
+
+@app.get("/test")
+async def test_page():
+    """Simple test page to verify WebSocket connection."""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head><title>WebSocket Test</title></head>
+    <body>
+        <h1>WebSocket Connection Test</h1>
+        <div id="status">Not connected</div>
+        <div id="messages"></div>
+        <script>
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            console.log('Test: Connecting to', wsUrl);
+            const ws = new WebSocket(wsUrl);
+            const status = document.getElementById('status');
+            const messages = document.getElementById('messages');
+            
+            ws.onopen = () => {
+                status.textContent = 'Connected!';
+                status.style.color = 'green';
+                messages.innerHTML += '<p>WebSocket connected successfully</p>';
+            };
+            ws.onmessage = (e) => {
+                messages.innerHTML += '<p>Message: ' + e.data.substring(0, 100) + '</p>';
+            };
+            ws.onerror = (e) => {
+                status.textContent = 'Error';
+                status.style.color = 'red';
+                messages.innerHTML += '<p>WebSocket error occurred</p>';
+                console.error('WebSocket error:', e);
+            };
+            ws.onclose = (e) => {
+                status.textContent = 'Closed: ' + e.code;
+                messages.innerHTML += '<p>WebSocket closed: ' + e.code + '</p>';
+            };
+        </script>
+    </body>
+    </html>
+    """)
 
 
 async def main():

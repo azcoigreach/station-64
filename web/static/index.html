@@ -22,7 +22,26 @@
             </div>
         </div>
     </div>
+    <script>
+        // Immediate test - check if page loaded
+        console.log('HTML page loaded');
+        console.log('Window location:', window.location.href);
+        console.log('WebSocket available:', typeof WebSocket !== 'undefined');
+    </script>
     <script src="/static/terminal.js"></script>
+    <script>
+        // Test after script loads
+        console.log('terminal.js script loaded');
+        setTimeout(() => {
+            console.log('Checking terminal after 1 second...');
+            const terminalBody = document.getElementById('terminal-body');
+            const terminalInput = document.getElementById('terminal-input');
+            console.log('Elements found:', {
+                terminalBody: !!terminalBody,
+                terminalInput: !!terminalInput
+            });
+        }, 1000);
+    </script>
 </body>
 </html>
 

@@ -1,43 +1,53 @@
-"""PETSCII encoding/decoding utilities for C64 compatibility."""
+"""PETSCII encoding/decoding utilities for C64 compatibility.
+
+Reference: Official C64 PETSCII table - https://sta.c64.org/cbm64pet.html
+
+Key points:
+- Codes $00-$1F and $80-$9F are control codes (not printable characters)
+- Code $93 (147 decimal) is the Clear screen command
+- Codes $60-$7F and $E0-$FE are not used (they're copies of other ranges)
+- Code $FF is the BASIC token for π (pi)
+"""
 from typing import Dict, Optional
 
 
 # PETSCII to Unicode mapping (screen codes)
-# Based on C64 character ROM
+# Based on official C64 PETSCII table: https://sta.c64.org/cbm64pet.html
+# Codes $00-$1F and $80-$9F are control codes (not printable characters)
 PETSCII_TO_UNICODE: Dict[int, str] = {
-    # Control characters (0x00-0x1F)
-    0x00: '\u0000',  # @ (null)
-    0x01: 'A',
-    0x02: 'B',
-    0x03: 'C',
-    0x04: 'D',
-    0x05: 'E',
-    0x06: 'F',
-    0x07: 'G',
-    0x08: 'H',
-    0x09: 'I',
-    0x0A: 'J',
-    0x0B: 'K',
-    0x0C: 'L',
+    # Control characters (0x00-0x1F) - Control codes, not printable
+    0x00: '\u0000',  # Null
+    0x01: ' ',  # (control code)
+    0x02: ' ',  # (control code)
+    0x03: ' ',  # Stop
+    0x04: ' ',  # (control code)
+    0x05: ' ',  # White (color code)
+    0x06: ' ',  # (control code)
+    0x07: ' ',  # (control code)
+    0x08: ' ',  # Disable C=-Shift
+    0x09: ' ',  # Enable C=-Shift
+    0x0A: ' ',  # (control code)
+    0x0B: ' ',  # (control code)
+    0x0C: ' ',  # (control code)
     0x0D: '\r',  # Return
-    0x0E: 'N',
-    0x0F: 'O',
-    0x10: 'P',
-    0x11: 'Q',
-    0x12: 'R',
-    0x13: 'S',
-    0x14: 'T',
-    0x15: 'U',
-    0x16: 'V',
-    0x17: 'W',
-    0x18: 'X',
-    0x19: 'Y',
-    0x1A: 'Z',
-    0x1B: '[',  # ESC
-    0x1C: '\\',
-    0x1D: ']',
-    0x1E: '^',
-    0x1F: '_',
+    0x0E: ' ',  # lo/up charset
+    0x0F: ' ',  # (control code)
+    0x10: ' ',  # (control code)
+    0x11: ' ',  # Cursor down
+    0x12: ' ',  # Reverse on
+    0x13: ' ',  # Home
+    0x14: ' ',  # Delete
+    0x15: ' ',  # (control code)
+    0x16: ' ',  # (control code)
+    0x17: ' ',  # (control code)
+    0x18: ' ',  # (control code)
+    0x19: ' ',  # (control code)
+    0x1A: ' ',  # (control code)
+    0x1B: '[',  # ESC / [
+    0x1C: ' ',  # Red (color code)
+    0x1D: ' ',  # Cursor right
+    0x1E: ' ',  # Green (color code)
+    0x1F: ' ',  # Blue (color code)
     # Printable characters (0x20-0x5F)
     0x20: ' ',
     0x21: '!',
@@ -103,9 +113,7 @@ PETSCII_TO_UNICODE: Dict[int, str] = {
     0x5D: ']',
     0x5E: '^',
     0x5F: '_',
-    # Graphics and special characters (0x60-0xFF)
-    # Note: This is a simplified mapping. Full PETSCII includes
-    # graphics characters, reverse video, etc.
+    # Lowercase and graphics (0x60-0x7F)
     0x60: '`',
     0x61: 'a',
     0x62: 'b',
@@ -138,9 +146,41 @@ PETSCII_TO_UNICODE: Dict[int, str] = {
     0x7D: '}',
     0x7E: '~',
     0x7F: '\u007F',  # DEL
-    # Extended graphics (0x80-0xFF)
-    # These are graphics characters unique to PETSCII
-    # For now, we'll map common ones
+    # Control codes (0x80-0x9F) - Control codes, not printable
+    # Reference: https://sta.c64.org/cbm64pet.html
+    0x80: ' ',  # (control code)
+    0x81: ' ',  # Orange (color code)
+    0x82: ' ',  # (control code)
+    0x83: ' ',  # Run
+    0x84: ' ',  # (control code)
+    0x85: ' ',  # F1
+    0x86: ' ',  # F3
+    0x87: ' ',  # F5
+    0x88: ' ',  # F7
+    0x89: ' ',  # F2
+    0x8A: ' ',  # F4
+    0x8B: ' ',  # F6
+    0x8C: ' ',  # F8
+    0x8D: ' ',  # Shift-Return
+    0x8E: ' ',  # up/gfx charset
+    0x8F: ' ',  # (control code)
+    0x90: ' ',  # Black (color code)
+    0x91: ' ',  # Cursor up
+    0x92: ' ',  # Reverse off
+    0x93: ' ',  # Clear (screen clear) - CRITICAL CODE!
+    0x94: ' ',  # Insert
+    0x95: ' ',  # Brown (color code)
+    0x96: ' ',  # Pink (color code)
+    0x97: ' ',  # Dark grey (color code)
+    0x98: ' ',  # Grey (color code)
+    0x99: ' ',  # Light green (color code)
+    0x9A: ' ',  # Light blue (color code)
+    0x9B: ' ',  # Light grey (color code)
+    0x9C: ' ',  # Purple (color code)
+    0x9D: ' ',  # Cursor left
+    0x9E: ' ',  # Yellow (color code)
+    0x9F: ' ',  # Cyan (color code)
+    # Full block and solid graphics
     0xA0: '\u2588',  # Full block (solid square)
     0xA1: '\u258C',  # Left half block
     0xA2: '\u2584',  # Lower half block
@@ -157,7 +197,89 @@ PETSCII_TO_UNICODE: Dict[int, str] = {
     0xAD: '\u2588',  # Full block
     0xAE: '\u2588',  # Full block
     0xAF: '\u2588',  # Full block
-    # Add more mappings as needed
+    # Right half block and quarter blocks
+    0xB0: '\u2590',  # Right half block
+    0xB1: '\u258C',  # Left half block
+    0xB2: '\u2584',  # Lower half block
+    0xB3: '\u2580',  # Upper half block
+    0xB4: '\u2588',  # Full block
+    0xB5: '\u2588',  # Full block
+    0xB6: '\u2588',  # Full block
+    0xB7: '\u2588',  # Full block
+    0xB8: '\u2588',  # Full block
+    0xB9: '\u2588',  # Full block
+    0xBA: '\u2588',  # Full block
+    0xBB: '\u2588',  # Full block
+    0xBC: '\u2588',  # Full block
+    0xBD: '\u2588',  # Full block
+    0xBE: '\u2588',  # Full block
+    0xBF: '\u2588',  # Full block
+    # More graphics characters (0xC0-0xFE)
+    # Note: Codes $E0-$FE are copies of $C0-$DE (not used per official table)
+    0xC0: '\u2591',  # Light shade
+    0xC1: '\u2592',  # Medium shade
+    0xC2: '\u2593',  # Dark shade
+    0xC3: '\u2588',  # Full block
+    0xC4: '\u2500',  # Box drawing horizontal
+    0xC5: '\u2502',  # Box drawing vertical
+    0xC6: '\u250C',  # Box drawing top-left corner
+    0xC7: '\u2510',  # Box drawing top-right corner
+    0xC8: '\u2514',  # Box drawing bottom-left corner
+    0xC9: '\u2518',  # Box drawing bottom-right corner
+    0xCA: '\u251C',  # Box drawing left T
+    0xCB: '\u2524',  # Box drawing right T
+    0xCC: '\u252C',  # Box drawing top T
+    0xCD: '\u2534',  # Box drawing bottom T
+    0xCE: '\u253C',  # Box drawing cross
+    0xCF: '\u2588',  # Full block
+    0xD0: '\u2588',  # Full block
+    0xD1: '\u2588',  # Full block
+    0xD2: '\u2588',  # Full block
+    0xD3: '\u2588',  # Full block
+    0xD4: '\u2588',  # Full block
+    0xD5: '\u2588',  # Full block
+    0xD6: '\u2588',  # Full block
+    0xD7: '\u2588',  # Full block
+    0xD8: '\u2588',  # Full block
+    0xD9: '\u2588',  # Full block
+    0xDA: '\u2588',  # Full block
+    0xDB: '\u2588',  # Full block
+    0xDC: '\u2588',  # Full block
+    0xDD: '\u2588',  # Full block
+    0xDE: '\u2588',  # Full block
+    0xDF: '\u2588',  # Full block
+    0xE0: '\u2588',  # Full block
+    0xE1: '\u2588',  # Full block
+    0xE2: '\u2588',  # Full block
+    0xE3: '\u2588',  # Full block
+    0xE4: '\u2588',  # Full block
+    0xE5: '\u2588',  # Full block
+    0xE6: '\u2588',  # Full block
+    0xE7: '\u2588',  # Full block
+    0xE8: '\u2588',  # Full block
+    0xE9: '\u2588',  # Full block
+    0xEA: '\u2588',  # Full block
+    0xEB: '\u2588',  # Full block
+    0xEC: '\u2588',  # Full block
+    0xED: '\u2588',  # Full block
+    0xEE: '\u2588',  # Full block
+    0xEF: '\u2588',  # Full block
+    0xF0: '\u2588',  # Full block
+    0xF1: '\u2588',  # Full block
+    0xF2: '\u2588',  # Full block
+    0xF3: '\u2588',  # Full block
+    0xF4: '\u2588',  # Full block
+    0xF5: '\u2588',  # Full block
+    0xF6: '\u2588',  # Full block
+    0xF7: '\u2588',  # Full block
+    0xF8: '\u2588',  # Full block
+    0xF9: '\u2588',  # Full block
+    0xFA: '\u2588',  # Full block
+    0xFB: '\u2588',  # Full block
+    0xFC: '\u2588',  # Full block
+    0xFD: '\u2588',  # Full block
+    0xFE: '\u2588',  # Full block
+    0xFF: '\u03C0',  # π (pi) - BASIC token, converts to $DE when printed
 }
 
 # Unicode to PETSCII reverse mapping
@@ -234,6 +356,65 @@ def generate_petscii_charset_simple() -> str:
                     row.append('.')
         if any(c != '.' for c in row):
             lines.append(f"0x{row_start:02X}: {' '.join(row)}")
+    
+    return '\n'.join(lines)
+
+
+# PETSCII Graphics Character Constants
+PETSCII_BLOCK = '\u2588'  # Full block (0xA0)
+PETSCII_LEFT_HALF = '\u258C'  # Left half block (0xA1)
+PETSCII_LOWER_HALF = '\u2584'  # Lower half block (0xA2)
+PETSCII_UPPER_HALF = '\u2580'  # Upper half block (0xA3)
+PETSCII_RIGHT_HALF = '\u2590'  # Right half block (0xB0)
+PETSCII_LIGHT_SHADE = '\u2591'  # Light shade (0xC0)
+PETSCII_MEDIUM_SHADE = '\u2592'  # Medium shade (0xC1)
+PETSCII_DARK_SHADE = '\u2593'  # Dark shade (0xC2)
+
+# Box drawing characters
+PETSCII_HLINE = '\u2500'  # Horizontal line (0xC4)
+PETSCII_VLINE = '\u2502'  # Vertical line (0xC5)
+PETSCII_TL_CORNER = '\u250C'  # Top-left corner (0xC6)
+PETSCII_TR_CORNER = '\u2510'  # Top-right corner (0xC7)
+PETSCII_BL_CORNER = '\u2514'  # Bottom-left corner (0xC8)
+PETSCII_BR_CORNER = '\u2518'  # Bottom-right corner (0xC9)
+PETSCII_LEFT_T = '\u251C'  # Left T (0xCA)
+PETSCII_RIGHT_T = '\u2524'  # Right T (0xCB)
+PETSCII_TOP_T = '\u252C'  # Top T (0xCC)
+PETSCII_BOTTOM_T = '\u2534'  # Bottom T (0xCD)
+PETSCII_CROSS = '\u253C'  # Cross (0xCE)
+
+
+def get_petscii_char(byte_val: int) -> str:
+    """Get PETSCII character by byte value."""
+    return petscii_to_unicode(byte_val)
+
+
+def create_box(width: int, height: int, double: bool = False) -> str:
+    """Create a box using PETSCII box drawing characters."""
+    if double:
+        hline = '\u2550'  # Double horizontal
+        vline = '\u2551'  # Double vertical
+        tl = '\u2554'  # Double top-left
+        tr = '\u2557'  # Double top-right
+        bl = '\u255A'  # Double bottom-left
+        br = '\u255D'  # Double bottom-right
+    else:
+        hline = PETSCII_HLINE
+        vline = PETSCII_VLINE
+        tl = PETSCII_TL_CORNER
+        tr = PETSCII_TR_CORNER
+        bl = PETSCII_BL_CORNER
+        br = PETSCII_BR_CORNER
+    
+    lines = []
+    # Top border
+    lines.append(tl + hline * (width - 2) + tr)
+    # Middle lines
+    for _ in range(height - 2):
+        lines.append(vline + ' ' * (width - 2) + vline)
+    # Bottom border
+    if height > 1:
+        lines.append(bl + hline * (width - 2) + br)
     
     return '\n'.join(lines)
 
