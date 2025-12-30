@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: station64-postgres
+    environment:
+      POSTGRES_USER: bbs_user
+      POSTGRES_PASSWORD: bbs_password
+      POSTGRES_DB: bbs_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bbs_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bbs:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: station64-bbs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://bbs_user:bbs_password@postgres:5432/bbs_db
+      TELNET_HOST: 0.0.0.0
+      TELNET_PORT: 6400
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: 8000
+      DEBUG: "false"
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+      - "6400:6400"
+    volumes:
+      - ./web/static:/app/web/static
+      - ./bbs:/app/bbs
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
